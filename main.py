@@ -261,10 +261,68 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
             table.add_row("'a's in first 23 chars", str(best.response[:23].count('a')))
             
             console.print(table)
+            
+            # Population statistics
+            pop_stats_table = Table(title=f"Population Statistics (Gen {gen})")
+            pop_stats_table.add_column("Statistic", style="cyan")
+            pop_stats_table.add_column("Value", style="green")
+            
+            # Calculate population statistics
+            fitnesses = [ind.fitness for ind in optimizer.population if ind.fitness is not None]
+            avg_fitness = sum(fitnesses) / len(fitnesses) if fitnesses else 0
+            median_fitness = sorted(fitnesses)[len(fitnesses)//2] if fitnesses else 0
+            a_counts = [ind.response[:23].count('a') for ind in optimizer.population if hasattr(ind, 'response')]
+            avg_a_count = sum(a_counts) / len(a_counts) if a_counts else 0
+            
+            pop_stats_table.add_row("Average Fitness", f"{avg_fitness:.2f}")
+            pop_stats_table.add_row("Median Fitness", f"{median_fitness:.2f}")
+            pop_stats_table.add_row("Fitness Range", f"{min(fitnesses) if fitnesses else 0} to {max(fitnesses) if fitnesses else 0}")
+            pop_stats_table.add_row("Average 'a's in first 23 chars", f"{avg_a_count:.2f}")
+            pop_stats_table.add_row("Population Size", str(len(optimizer.population)))
+            
+            console.print(pop_stats_table)
+            
+            # Show top 3 individuals
+            top_table = Table(title=f"Top 3 Individuals (Gen {gen})")
+            top_table.add_column("Rank", style="cyan")
+            top_table.add_column("Fitness", style="green")
+            top_table.add_column("System Prompt", style="yellow")
+            top_table.add_column("Response", style="magenta")
+            top_table.add_column("'a's in first 23", style="blue")
+            
+            for i, ind in enumerate(optimizer.population[:3]):
+                top_table.add_row(
+                    str(i+1),
+                    str(ind.fitness),
+                    ind.prompt[:30] + "..." if len(ind.prompt) > 30 else ind.prompt,
+                    ind.response[:30] + "..." if len(ind.response) > 30 else ind.response,
+                    str(ind.response[:23].count('a'))
+                )
+            
+            console.print(top_table)
+            console.print("\n" + "="*80 + "\n")
     
     # Final results
     console.print(Panel("[bold green]Optimization Complete![/bold green]"))
     
+    # Evolution summary
+    evolution_table = Table(title="Evolution Summary")
+    evolution_table.add_column("Generation", style="cyan")
+    evolution_table.add_column("Best Fitness", style="green")
+    evolution_table.add_column("'a's in first 23", style="yellow")
+    evolution_table.add_column("Response Preview", style="magenta")
+    
+    for i, (fitness, response) in enumerate(zip(best_fitness_history, best_responses)):
+        evolution_table.add_row(
+            str(i+1),
+            str(fitness),
+            str(response[:23].count('a')),
+            response[:20] + "..." if len(response) > 20 else response
+        )
+    
+    console.print(evolution_table)
+    
+    # Detailed final results
     result_table = Table(title="Final Results")
     result_table.add_column("Metric", style="cyan")
     result_table.add_column("Value", style="green")
@@ -278,6 +336,47 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
     result_table.add_row("Full Response", best_individual.response)
     
     console.print(result_table)
+    
+    # Analysis of evolution
+    analysis_table = Table(title="Evolution Analysis")
+    analysis_table.add_column("Metric", style="cyan")
+    analysis_table.add_column("Value", style="green")
+    
+    # Calculate improvement
+    if len(best_fitness_history) > 1:
+        first_gen = best_fitness_history[0]
+        last_gen = best_fitness_history[-1]
+        improvement = last_gen - first_gen
+        percent_improvement = (improvement / abs(first_gen)) * 100 if first_gen != 0 else float('inf')
+        
+        analysis_table.add_row("Initial Best Fitness", str(first_gen))
+        analysis_table.add_row("Final Best Fitness", str(last_gen))
+        analysis_table.add_row("Absolute Improvement", str(improvement))
+        analysis_table.add_row("Percent Improvement", f"{percent_improvement:.2f}%")
+        
+        # Find generation with biggest improvement
+        improvements = [best_fitness_history[i] - best_fitness_history[i-1] for i in range(1, len(best_fitness_history))]
+        if improvements:
+            max_improvement_gen = improvements.index(max(improvements)) + 1
+            max_improvement = max(improvements)
+            analysis_table.add_row("Biggest Improvement", f"{max_improvement} (Gen {max_improvement_gen} to {max_improvement_gen+1})")
+    
+    console.print(analysis_table)
+    
+    # Print optimization parameters
+    params_table = Table(title="Optimization Parameters")
+    params_table.add_column("Parameter", style="cyan")
+    params_table.add_column("Value", style="green")
+    
+    params_table.add_row("Population Size", str(optimizer.population_size))
+    params_table.add_row("Mutation Rate", str(optimizer.mutation_rate))
+    params_table.add_row("Crossover Rate", str(optimizer.crossover_rate))
+    params_table.add_row("Elitism Count", str(optimizer.elitism_count))
+    params_table.add_row("Prompt Length", str(optimizer.prompt_length))
+    params_table.add_row("Number of Threads", str(num_threads))
+    params_table.add_row("Generations", str(generations))
+    
+    console.print(params_table)
 
 def main():
     run_optimization(generations=5, num_threads=100)  # Using 100 threads by default
