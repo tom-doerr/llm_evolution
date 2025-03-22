@@ -1,5 +1,6 @@
 import litellm
 from typing import List, Tuple, Optional
+from rich import print
 
 def format_history(history: List[Tuple[str, int, int]]) -> str:
     """Format history into human-readable string"""
@@ -27,7 +28,7 @@ def evaluate_response(response: str) -> Tuple[int, int]:
             reward -= 1
     return reward, a_count
 
-def reasoner_experiment(iterations: int = 10):
+def reasoner_experiment(iterations: int = 100):
     """
     Run iterative prompting experiment with deepseek-reasoner
     """
@@ -54,7 +55,7 @@ def reasoner_experiment(iterations: int = 10):
             if history:
                 for resp, reward, _ in history:
                     messages.append({"role": "assistant", "content": resp})
-                    messages.append({"role": "user", "content": f"Received reward: {reward}"})
+                    messages.append({"role": "user", "content": f"Reward: {reward}"})
             
             # Get model completion
             response = litellm.completion(
@@ -70,8 +71,9 @@ def reasoner_experiment(iterations: int = 10):
             
             # Print results
             print(f"\n=== Iteration {i+1} ===")
-            print(f"Response: {response}")
-            print(f"Reward: {reward} (a's: {a_count})")
+            # print(f"Response: {response}")
+            # print(f"Reward: {reward} (a's: {a_count})")
+            print(messages)
             
             # Update prompt for next iteration
             current_prompt = response
