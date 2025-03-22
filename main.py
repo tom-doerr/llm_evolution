@@ -180,24 +180,21 @@ class EvolutionaryOptimizer:
         # Elitism - keep the best individuals
         new_population.extend(self.population[:self.elitism_count])
         
-        # Create the rest of the population through crossover and mutation
+        # Add LLM responses as new prompts to the population
+        for individual in self.population:
+            if hasattr(individual, 'response') and individual.response:
+                # Create a new individual using the LLM's response as the prompt
+                new_individual = Individual(individual.response)
+                new_population.append(new_individual)
+                
+                # Break if we've reached the population size
+                if len(new_population) >= self.population_size:
+                    break
+        
+        # If we still need more individuals, add random ones
         while len(new_population) < self.population_size:
-            if random.random() < self.crossover_rate:
-                parent1 = self.select_parent()
-                parent2 = self.select_parent()
-                child1, child2 = parent1.crossover(parent2)
-                
-                child1.mutate(self.mutation_rate, get_llm_mutation)
-                child2.mutate(self.mutation_rate, get_llm_mutation)
-                
-                new_population.append(child1)
-                if len(new_population) < self.population_size:
-                    new_population.append(child2)
-            else:
-                # Just mutation
-                parent = self.select_parent()
-                child = Individual(parent.prompt).mutate(self.mutation_rate, get_llm_mutation)
-                new_population.append(child)
+            new_individual = Individual(length=self.prompt_length)
+            new_population.append(new_individual)
         
         self.population = new_population
         self.generation += 1
@@ -208,16 +205,17 @@ class EvolutionaryOptimizer:
 
 def run_optimization(generations: int = 50, num_threads: int = 100):
     optimizer = EvolutionaryOptimizer(
-        population_size=20,  # Further reduced population size due to more API calls
-        mutation_rate=0.8,   # Higher mutation rate to encourage LLM mutations
-        crossover_rate=0.5,  # Lower crossover rate to favor mutations
-        elitism_count=2,     # Keep fewer elites
+        population_size=20,  # Moderate population size
+        mutation_rate=0.0,   # No mutation needed as we use responses directly
+        crossover_rate=0.0,  # No crossover needed
+        elitism_count=2,     # Keep a few elites
         prompt_length=30     # System prompts can be a bit longer
     )
     
     console = Console()
-    console.print(Panel("[bold green]Starting evolutionary optimization with LLM-based mutations...[/bold green]"))
+    console.print(Panel("[bold green]Starting evolutionary optimization using LLM responses as new prompts...[/bold green]"))
     console.print(f"[bold]Using {num_threads} threads for parallel evaluation (max 10 tokens per completion)[/bold]")
+    console.print("[bold yellow]Each LLM response is added directly to the population as a new prompt[/bold yellow]")
     
     # Create a progress display
     with Progress(
@@ -369,8 +367,8 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
     params_table.add_column("Value", style="green")
     
     params_table.add_row("Population Size", str(optimizer.population_size))
-    params_table.add_row("Mutation Rate", str(optimizer.mutation_rate))
-    params_table.add_row("Crossover Rate", str(optimizer.crossover_rate))
+    params_table.add_row("Mutation Rate", "N/A (Using responses as new prompts)")
+    params_table.add_row("Crossover Rate", "N/A (No crossover used)")
     params_table.add_row("Elitism Count", str(optimizer.elitism_count))
     params_table.add_row("Prompt Length", str(optimizer.prompt_length))
     params_table.add_row("Number of Threads", str(num_threads))
