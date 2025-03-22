@@ -219,9 +219,9 @@ class EvolutionaryOptimizer:
 
 def run_optimization(generations: int = 50, num_threads: int = 100):
     optimizer = EvolutionaryOptimizer(
-        population_size=100,  # Larger population for genetic diversity
-        mutation_rate=0.8,    # Higher mutation rate to encourage LLM mutations
-        crossover_rate=0.7,  # Use crossover to combine good solutions
+        population_size=20,   # Smaller population for faster execution
+        mutation_rate=0.8,    # Keep mutation rate the same 
+        crossover_rate=0.0,  # Disable crossover
         elitism_count=2,     # Keep a few elites
         prompt_length=30     # System prompts can be a bit longer
     )
