@@ -33,6 +33,7 @@ def get_llm_response(system_prompt: str) -> str:
         response = litellm.completion(
             model="deepseek/deepseek-chat",
             messages=messages,
+            temperature=2.0,  # Higher temperature for more randomness
             max_tokens=10  # Limit to 10 tokens
         )
         return response.choices[0].message.content
