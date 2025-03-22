@@ -4,19 +4,38 @@ import string
 import numpy as np
 from typing import List, Tuple, Callable
 
-def evaluate_prompt(prompt: str) -> float:
+def evaluate_response(response: str) -> float:
     """
-    Evaluate a prompt based on hidden criteria.
+    Evaluate an LLM response based on hidden criteria.
     Returns a score.
     """
     score = 0
-    for i, char in enumerate(prompt):
+    for i, char in enumerate(response):
         if i < 23 and char == 'a':
             score += 1
         elif i >= 23:
             score -= 1
     
     return score
+
+def get_llm_response(prompt: str) -> str:
+    """
+    Get a response from the LLM for a given prompt.
+    """
+    try:
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = litellm.completion(
+            model="deepseek/deepseek-chat",
+            messages=messages
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error calling LLM: {e}")
+        return ""  # Return empty string on error
 
 class Individual:
     def __init__(self, prompt: str = None, length: int = 30):
@@ -26,8 +45,13 @@ class Individual:
             self.prompt = prompt
         self.fitness = None
     
-    def evaluate(self, fitness_func: Callable):
-        self.fitness = fitness_func(self.prompt)
+    def evaluate(self, fitness_func: Callable, get_response_func: Callable = None):
+        if get_response_func:
+            response = get_response_func(self.prompt)
+            self.response = response
+            self.fitness = fitness_func(response)
+        else:
+            self.fitness = fitness_func(self.prompt)
         return self.fitness
     
     def mutate(self, mutation_rate: float = 0.1):
@@ -65,10 +89,10 @@ class EvolutionaryOptimizer:
         self.best_individual = None
         self.generation = 0
         
-    def evaluate_population(self, fitness_func: Callable):
+    def evaluate_population(self, fitness_func: Callable, get_response_func: Callable = None):
         for individual in self.population:
             if individual.fitness is None:
-                individual.evaluate(fitness_func)
+                individual.evaluate(fitness_func, get_response_func)
         
         self.population.sort(key=lambda x: x.fitness, reverse=True)
         self.best_individual = self.population[0]
@@ -80,8 +104,8 @@ class EvolutionaryOptimizer:
         tournament.sort(key=lambda x: x.fitness, reverse=True)
         return tournament[0]
     
-    def evolve(self, fitness_func: Callable):
-        self.evaluate_population(fitness_func)
+    def evolve(self, fitness_func: Callable, get_response_func: Callable = None):
+        self.evaluate_population(fitness_func, get_response_func)
         
         new_population = []
         
@@ -115,47 +139,39 @@ class EvolutionaryOptimizer:
 
 def run_optimization(generations: int = 50):
     optimizer = EvolutionaryOptimizer(
-        population_size=100,
+        population_size=30,  # Reduced population size to limit API calls
         mutation_rate=0.1,
         crossover_rate=0.7,
-        elitism_count=5,
-        prompt_length=30
+        elitism_count=3,
+        prompt_length=15  # Shorter prompts to start
     )
     
     print("Starting evolutionary optimization...")
     print("Generation 0: Initializing population")
     
     for gen in range(1, generations + 1):
-        best = optimizer.evolve(evaluate_prompt)
-        print(f"Generation {gen}: Best fitness = {best.fitness}, Prompt = '{best.prompt}'")
+        best = optimizer.evolve(evaluate_response, get_llm_response)
+        print(f"Generation {gen}: Best fitness = {best.fitness}")
+        print(f"Best prompt: '{best.prompt}'")
+        print(f"Response: '{best.response[:50]}...' (truncated)")
+        print("-" * 50)
     
     print("\nOptimization complete!")
     print(f"Best prompt found: '{optimizer.best_individual.prompt}'")
     print(f"Fitness score: {optimizer.best_individual.fitness}")
     
-    # Analyze the best prompt
-    print("\nAnalysis of best prompt:")
-    print(f"Length: {len(optimizer.best_individual.prompt)}")
-    print(f"Number of 'a's: {optimizer.best_individual.prompt.count('a')}")
+    # Analyze the best response
+    print("\nAnalysis of best response:")
+    print(f"Response length: {len(optimizer.best_individual.response)}")
+    print(f"Number of 'a's in first 23 chars: {optimizer.best_individual.response[:23].count('a')}")
+    print(f"Total number of 'a's: {optimizer.best_individual.response.count('a')}")
     
-    # Try to use the best prompt with the LLM
-    try:
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": optimizer.best_individual.prompt}
-        ]
-        
-        response = litellm.completion(
-            model="deepseek/deepseek-chat",
-            messages=messages
-        )
-        print("\nLLM Response to best prompt:")
-        print(response.choices[0].message.content)
-    except Exception as e:
-        print(f"Error calling LLM: {e}")
+    # Print the full response
+    print("\nFull response to best prompt:")
+    print(optimizer.best_individual.response)
 
 def main():
-    run_optimization(generations=50)
+    run_optimization(generations=10)  # Reduced generations to limit API calls
 
 if __name__ == "__main__":
     main()
