@@ -1,5 +1,15 @@
 import litellm
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+
+def format_history(history: List[Tuple[str, int, int]]) -> str:
+    """Format history into human-readable string"""
+    if not history:
+        return "No previous attempts"
+        
+    return "\n".join(
+        f"Attempt {i+1}: {resp[:20]}... (Reward: {reward}, 'a's: {a_count})"
+        for i, (resp, reward, a_count) in enumerate(history)
+    )
 
 def evaluate_response(response: str) -> Tuple[int, int]:
     """
@@ -24,12 +34,13 @@ def reasoner_experiment(iterations: int = 10):
     system_msg = """You are an AI that generates text. Your goal is to maximize your reward score.
     
     Rules:
-    1. You will see your previous attempt and its reward
+    1. You will see your full history of attempts and rewards
     2. Each 'a' in first 23 characters gives +1 reward
     3. Any character after 23 gives -1 reward
     4. Responses limited to 10 tokens
     
-    Respond ONLY with your improved text attempt."""
+    Analyze the patterns in your history and improve systematically.
+    Respond ONLY with your new text attempt."""
     
     history = []
     current_prompt = "Start with random text"
@@ -41,7 +52,7 @@ def reasoner_experiment(iterations: int = 10):
                 model="deepseek/deepseek-reasoner",
                 messages=[
                     {"role": "system", "content": system_msg},
-                    {"role": "user", "content": f"Previous: {current_prompt}\nReward: {history[-1][1] if history else '?'}\nNew attempt:"}
+                    {"role": "user", "content": f"Full History:\n{format_history(history)}\n\nNew attempt:"}
                 ],
                 temperature=0.7,
                 max_tokens=10
