@@ -185,24 +185,30 @@ class EvolutionaryOptimizer:
         # Elitism - keep the best individuals
         new_population.extend(self.population[:self.elitism_count])
         
-        # Create new population through crossover and mutation
-        while len(new_population) < self.population_size:
-            if random.random() < self.crossover_rate:
-                parent1 = self.select_parent()
-                parent2 = self.select_parent()
-                child1, child2 = parent1.crossover(parent2)
-                
-                child1.mutate(self.mutation_rate, get_llm_mutation)
-                child2.mutate(self.mutation_rate, get_llm_mutation)
-                
-                new_population.append(child1)
-                if len(new_population) < self.population_size:
-                    new_population.append(child2)
-            else:
-                # Just mutation
-                parent = self.select_parent()
-                child = Individual(parent.prompt).mutate(self.mutation_rate, get_llm_mutation)
-                new_population.append(child)
+        # Calculate number of crossovers needed (each produces 2 children)
+        num_crossovers = int((self.population_size - self.elitism_count) * self.crossover_rate) // 2
+        num_mutations = (self.population_size - self.elitism_count) - (num_crossovers * 2)
+        
+        # Generate crossover children in batch
+        crossover_children = []
+        for _ in range(num_crossovers):
+            parent1 = self.select_parent()
+            parent2 = self.select_parent()
+            child1, child2 = parent1.crossover(parent2)
+            child1.mutate(self.mutation_rate, get_llm_mutation)
+            child2.mutate(self.mutation_rate, get_llm_mutation)
+            crossover_children.extend([child1, child2])
+        
+        # Generate mutation children in batch
+        mutation_children = []
+        for _ in range(num_mutations):
+            parent = self.select_parent()
+            child = Individual(parent.prompt).mutate(self.mutation_rate, get_llm_mutation)
+            mutation_children.append(child)
+        
+        # Combine all children and truncate to population size
+        all_children = crossover_children + mutation_children
+        new_population.extend(all_children[:self.population_size - self.elitism_count])
         
         self.population = new_population
         self.generation += 1
