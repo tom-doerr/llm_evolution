@@ -7,8 +7,8 @@ def format_history(history: List[Tuple[str, int, int]]) -> str:
         return "No previous attempts"
         
     return "\n".join(
-        f"Attempt {i+1}: {resp[:20]}... (Reward: {reward}, 'a's: {a_count})"
-        for i, (resp, reward, a_count) in enumerate(history)
+        f"• [Reward {reward}] {resp[:15]}..."
+        for i, (resp, reward, _) in enumerate(history)
     )
 
 def evaluate_response(response: str) -> Tuple[int, int]:
