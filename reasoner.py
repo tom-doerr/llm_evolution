@@ -44,13 +44,22 @@ def reasoner_experiment(iterations: int = 10):
     
     for i in range(iterations):
         try:
+            # Build message list incrementally
+            messages = [{"role": "system", "content": system_msg}]
+            
+            # Add history as previous exchanges
+            if history:
+                for resp, reward, _ in history:
+                    messages.append({"role": "assistant", "content": resp})
+                    messages.append({"role": "user", "content": f"Received reward: {reward}"})
+            
+            # Add new attempt prompt
+            messages.append({"role": "user", "content": "Create improved text:"})
+            
             # Get model completion
             response = litellm.completion(
                 model="deepseek/deepseek-reasoner",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": f"Previous attempts:\n{format_history(history)}\nCreate improved text:"}
-                ],
+                messages=messages,
                 temperature=0.7,
                 max_tokens=10
             ).choices[0].message.content
