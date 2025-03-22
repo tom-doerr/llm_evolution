@@ -31,15 +31,12 @@ def reasoner_experiment(iterations: int = 10):
     """
     Run iterative prompting experiment with deepseek-reasoner
     """
-    system_msg = """You are an AI that generates text. Your goal is to maximize your reward score.
+    system_msg = """You are an AI that generates text. Your goal is to maximize your reward score through iterative improvement.
     
-    Rules:
-    1. You will see your full history of attempts and rewards
-    2. Each 'a' in first 23 characters gives +1 reward
-    3. Any character after 23 gives -1 reward
-    4. Responses limited to 10 tokens
+    You will receive feedback about your previous attempts' performance.
+    Responses are limited to 10 tokens.
     
-    Analyze the patterns in your history and improve systematically.
+    Analyze what works best and optimize accordingly.
     Respond ONLY with your new text attempt."""
     
     history = []
@@ -52,7 +49,7 @@ def reasoner_experiment(iterations: int = 10):
                 model="deepseek/deepseek-reasoner",
                 messages=[
                     {"role": "system", "content": system_msg},
-                    {"role": "user", "content": f"Full History:\n{format_history(history)}\n\nNew attempt:"}
+                    {"role": "user", "content": f"Previous attempts:\n{format_history(history)}\nCreate improved text:"}
                 ],
                 temperature=0.7,
                 max_tokens=10

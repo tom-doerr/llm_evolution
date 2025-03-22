@@ -55,8 +55,8 @@ def get_llm_mutation(system_prompt: str) -> str:
     """
     try:
         messages = [
-            {"role": "system", "content": "You are a helpful assistant that generates random text. Your response will be used as a system prompt."},
-            {"role": "user", "content": f"Generate a new system prompt based on this one: {system_prompt}"}
+            {"role": "system", "content": "You are a prompt generation assistant. Create variations of this prompt:"},
+            {"role": "user", "content": f"{system_prompt}"}
         ]
         
         response = litellm.completion(
