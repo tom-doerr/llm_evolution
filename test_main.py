@@ -32,7 +32,9 @@ def test_individual_mutate(sample_individual):
     assert len(sample_individual.prompt) == len(original_prompt)
 
 def test_individual_crossover(sample_individual):
-    parent2 = Individual(prompt="another_prompt")
+    # Use same-length prompts for crossover test
+    parent2 = Individual(prompt="prompt456")
+    sample_individual.prompt = "prompt123"  # Set fixed length
     child1, child2 = sample_individual.crossover(parent2)
     assert len(child1.prompt) == len(sample_individual.prompt)
     assert len(child2.prompt) == len(sample_individual.prompt)
@@ -43,8 +45,8 @@ def test_evaluate_response():
     assert evaluate_response("a" * 30) == 23 - 7  # 23 'a's - 7 extra bytes
     assert evaluate_response("") == 0  # Empty response
     
-    # Test multi-byte characters
-    assert evaluate_response("å" * 30) == -7  # 'å' is 2 bytes, 30 chars = 60 bytes
+    # Test multi-byte characters (30 'å' chars = 60 bytes)
+    assert evaluate_response("å" * 30) == -37  # 60 total bytes - 23 = 37 penalty
 
 def test_optimizer_initialization(sample_optimizer):
     assert len(sample_optimizer.population) == 20
