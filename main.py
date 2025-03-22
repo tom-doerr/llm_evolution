@@ -22,6 +22,7 @@ def evaluate_response(response: str) -> float:
 def get_llm_response(system_prompt: str) -> str:
     """
     Get a response from the LLM using the provided system prompt and an empty user message.
+    Limited to 10 tokens.
     """
     try:
         messages = [
@@ -31,7 +32,8 @@ def get_llm_response(system_prompt: str) -> str:
         
         response = litellm.completion(
             model="deepseek/deepseek-chat",
-            messages=messages
+            messages=messages,
+            max_tokens=10  # Limit to 10 tokens
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -41,6 +43,7 @@ def get_llm_response(system_prompt: str) -> str:
 def get_llm_mutation(system_prompt: str) -> str:
     """
     Get a mutation from the LLM by using its response as the new prompt.
+    Limited to 10 tokens.
     """
     try:
         messages = [
@@ -50,7 +53,8 @@ def get_llm_mutation(system_prompt: str) -> str:
         
         response = litellm.completion(
             model="deepseek/deepseek-chat",
-            messages=messages
+            messages=messages,
+            max_tokens=10  # Limit to 10 tokens
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -178,7 +182,7 @@ class EvolutionaryOptimizer:
         
         return self.best_individual
 
-def run_optimization(generations: int = 50, num_threads: int = 10):
+def run_optimization(generations: int = 50, num_threads: int = 100):
     optimizer = EvolutionaryOptimizer(
         population_size=20,  # Further reduced population size due to more API calls
         mutation_rate=0.8,   # Higher mutation rate to encourage LLM mutations
@@ -188,7 +192,7 @@ def run_optimization(generations: int = 50, num_threads: int = 10):
     )
     
     print("Starting evolutionary optimization with LLM-based mutations...")
-    print(f"Using {num_threads} threads for parallel evaluation")
+    print(f"Using {num_threads} threads for parallel evaluation (max 10 tokens per completion)")
     print("Generation 0: Initializing population with random prompts")
     
     for gen in range(1, generations + 1):
@@ -213,7 +217,7 @@ def run_optimization(generations: int = 50, num_threads: int = 10):
     print(optimizer.best_individual.response)
 
 def main():
-    run_optimization(generations=5, num_threads=10)  # Further reduced generations due to more API calls
+    run_optimization(generations=5, num_threads=100)  # Using 100 threads by default
 
 if __name__ == "__main__":
     main()
