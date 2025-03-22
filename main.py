@@ -126,9 +126,13 @@ class EvolutionaryOptimizer:
         self.best_individual = None
         self.generation = 0
         
-    def evaluate_population(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10):
+    def evaluate_population(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10, progress=None, task_id=None):
         # Evaluate individuals in parallel
         unevaluated = [ind for ind in self.population if ind.fitness is None]
+        total = len(unevaluated)
+        completed = 0
+        
+        console = Console()
         
         if unevaluated and get_response_func:
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
@@ -139,12 +143,24 @@ class EvolutionaryOptimizer:
                 for future in concurrent.futures.as_completed(futures):
                     try:
                         future.result()  # Get the result (or exception)
+                        completed += 1
+                        if progress and task_id:
+                            progress.update(task_id, completed=completed, total=total)
+                            ind = futures[future]
+                            if hasattr(ind, 'response'):
+                                progress.console.print(f"[cyan]Prompt:[/cyan] {ind.prompt[:30]}...")
+                                progress.console.print(f"[green]Response:[/green] {ind.response}")
+                                progress.console.print(f"[yellow]Fitness:[/yellow] {ind.fitness}")
+                                progress.console.print("---")
                     except Exception as e:
-                        print(f"Error evaluating individual: {e}")
+                        console.print(f"[red]Error evaluating individual:[/red] {e}")
         else:
             # Fallback to sequential evaluation
             for individual in unevaluated:
                 individual.evaluate(fitness_func, get_response_func)
+                completed += 1
+                if progress and task_id:
+                    progress.update(task_id, completed=completed, total=total)
         
         self.population.sort(key=lambda x: x.fitness if x.fitness is not None else float('-inf'), reverse=True)
         self.best_individual = self.population[0]
