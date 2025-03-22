@@ -8,7 +8,7 @@ def main():
     
     try:
         response = litellm.completion(
-            model="openrouter/deepseek/deepseek-chat",
+            model="deepseek/deepseek-chat",
             messages=messages
         )
         print(response.choices[0].message.content)
