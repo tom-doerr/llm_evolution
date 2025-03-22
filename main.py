@@ -206,7 +206,7 @@ class EvolutionaryOptimizer:
 
 def run_optimization(generations: int = 50, num_threads: int = 100):
     optimizer = EvolutionaryOptimizer(
-        population_size=20,  # Moderate population size
+        population_size=100,  # Larger population size
         mutation_rate=0.0,   # No mutation needed as we use responses directly
         crossover_rate=0.0,  # No crossover needed
         elitism_count=2,     # Keep a few elites
