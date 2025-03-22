@@ -103,12 +103,15 @@ class Individual:
         return self
 
     def crossover(self, other: 'Individual') -> Tuple['Individual', 'Individual']:
-        if len(self.prompt) != len(other.prompt):
-            raise ValueError("Prompts must be of the same length")
+        # Handle different length prompts by using minimum length
+        min_length = min(len(self.prompt), len(other.prompt))
+        crossover_point = random.randint(1, min_length - 1) if min_length > 1 else 0
         
-        crossover_point = random.randint(1, len(self.prompt) - 1)
-        child1_prompt = self.prompt[:crossover_point] + other.prompt[crossover_point:]
-        child2_prompt = other.prompt[:crossover_point] + self.prompt[crossover_point:]
+        # Combine prompts using crossover point
+        child1_prompt = (self.prompt[:crossover_point] + 
+                        other.prompt[crossover_point:])
+        child2_prompt = (other.prompt[:crossover_point] + 
+                        self.prompt[crossover_point:])
         
         return Individual(child1_prompt), Individual(child2_prompt)
 
