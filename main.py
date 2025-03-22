@@ -75,6 +75,7 @@ class Individual:
         else:
             self.prompt = prompt
         self.fitness = None
+        self.response = ""  # Initialize response attribute
     
     def evaluate(self, fitness_func: Callable, get_response_func: Callable = None):
         if get_response_func:
