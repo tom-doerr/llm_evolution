@@ -3,7 +3,13 @@ import random
 import string
 import numpy as np
 import concurrent.futures
+import time
 from typing import List, Tuple, Callable
+from rich.console import Console
+from rich.live import Live
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskID
 
 def evaluate_response(response: str) -> float:
     """
@@ -150,8 +156,8 @@ class EvolutionaryOptimizer:
         tournament.sort(key=lambda x: x.fitness, reverse=True)
         return tournament[0]
     
-    def evolve(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10):
-        self.evaluate_population(fitness_func, get_response_func, num_threads)
+    def evolve(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10, progress=None, task_id=None):
+        self.evaluate_population(fitness_func, get_response_func, num_threads, progress, task_id)
         
         new_population = []
         
@@ -192,30 +198,69 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
         prompt_length=30     # System prompts can be a bit longer
     )
     
-    print("Starting evolutionary optimization with LLM-based mutations...")
-    print(f"Using {num_threads} threads for parallel evaluation (max 10 tokens per completion)")
-    print("Generation 0: Initializing population with random prompts")
+    console = Console()
+    console.print(Panel("[bold green]Starting evolutionary optimization with LLM-based mutations...[/bold green]"))
+    console.print(f"[bold]Using {num_threads} threads for parallel evaluation (max 10 tokens per completion)[/bold]")
     
-    for gen in range(1, generations + 1):
-        best = optimizer.evolve(evaluate_response, get_llm_response, num_threads)
-        print(f"Generation {gen}: Best fitness = {best.fitness}")
-        print(f"Best system prompt: '{best.prompt[:50]}...' (truncated)")
-        print(f"Response: '{best.response[:50]}...' (truncated)")
-        print("-" * 50)
+    # Create a progress display
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("({task.completed}/{task.total})"),
+        console=console,
+        transient=False,
+    ) as progress:
+        # Add tasks for overall progress and current generation
+        overall_task = progress.add_task("[cyan]Overall Progress", total=generations)
+        gen_task = progress.add_task("[green]Generation 0", total=optimizer.population_size)
+        
+        # Track best fitness over generations
+        best_fitness_history = []
+        best_prompts = []
+        best_responses = []
+        
+        for gen in range(1, generations + 1):
+            progress.update(gen_task, description=f"[green]Generation {gen}", completed=0)
+            
+            # Evolve the population
+            best = optimizer.evolve(evaluate_response, get_llm_response, num_threads, progress, gen_task)
+            best_fitness_history.append(best.fitness)
+            best_prompts.append(best.prompt)
+            best_responses.append(best.response)
+            
+            # Update progress
+            progress.update(overall_task, advance=1)
+            
+            # Display generation summary
+            table = Table(title=f"Generation {gen} Summary")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green")
+            
+            table.add_row("Best Fitness", str(best.fitness))
+            table.add_row("Best System Prompt", best.prompt[:50] + "..." if len(best.prompt) > 50 else best.prompt)
+            table.add_row("Response", best.response[:50] + "..." if len(best.response) > 50 else best.response)
+            table.add_row("'a's in first 23 chars", str(best.response[:23].count('a')))
+            
+            console.print(table)
     
-    print("\nOptimization complete!")
-    print(f"Best system prompt found: '{optimizer.best_individual.prompt}'")
-    print(f"Fitness score: {optimizer.best_individual.fitness}")
+    # Final results
+    console.print(Panel("[bold green]Optimization Complete![/bold green]"))
     
-    # Analyze the best response
-    print("\nAnalysis of best response:")
-    print(f"Response length: {len(optimizer.best_individual.response)}")
-    print(f"Number of 'a's in first 23 chars: {optimizer.best_individual.response[:23].count('a')}")
-    print(f"Total number of 'a's: {optimizer.best_individual.response.count('a')}")
+    result_table = Table(title="Final Results")
+    result_table.add_column("Metric", style="cyan")
+    result_table.add_column("Value", style="green")
     
-    # Print the full response
-    print("\nFull response to best system prompt:")
-    print(optimizer.best_individual.response)
+    best_individual = optimizer.best_individual
+    result_table.add_row("Best System Prompt", best_individual.prompt)
+    result_table.add_row("Fitness Score", str(best_individual.fitness))
+    result_table.add_row("Response Length", str(len(best_individual.response)))
+    result_table.add_row("'a's in first 23 chars", str(best_individual.response[:23].count('a')))
+    result_table.add_row("Total 'a's", str(best_individual.response.count('a')))
+    result_table.add_row("Full Response", best_individual.response)
+    
+    console.print(result_table)
 
 def main():
     run_optimization(generations=5, num_threads=100)  # Using 100 threads by default
