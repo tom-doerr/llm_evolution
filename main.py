@@ -201,7 +201,8 @@ class EvolutionaryOptimizer:
         
         self.population = new_population
         self.generation += 1
-        self.evaluate_population(fitness_func)
+        # No need to evaluate the population again here
+        # The evaluation will happen at the beginning of the next generation
         
         return self.best_individual
 
