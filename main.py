@@ -2,6 +2,7 @@ import litellm
 import random
 import string
 import numpy as np
+import concurrent.futures
 from typing import List, Tuple, Callable
 
 def evaluate_response(response: str) -> float:
@@ -18,14 +19,14 @@ def evaluate_response(response: str) -> float:
     
     return score
 
-def get_llm_response(prompt: str) -> str:
+def get_llm_response(system_prompt: str) -> str:
     """
-    Get a response from the LLM for a given prompt.
+    Get a response from the LLM using the provided system prompt and an empty user message.
     """
     try:
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": ""}
         ]
         
         response = litellm.completion(
@@ -89,12 +90,27 @@ class EvolutionaryOptimizer:
         self.best_individual = None
         self.generation = 0
         
-    def evaluate_population(self, fitness_func: Callable, get_response_func: Callable = None):
-        for individual in self.population:
-            if individual.fitness is None:
+    def evaluate_population(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10):
+        # Evaluate individuals in parallel
+        unevaluated = [ind for ind in self.population if ind.fitness is None]
+        
+        if unevaluated and get_response_func:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+                # Create a list of futures
+                futures = {executor.submit(ind.evaluate, fitness_func, get_response_func): ind for ind in unevaluated}
+                
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()  # Get the result (or exception)
+                    except Exception as e:
+                        print(f"Error evaluating individual: {e}")
+        else:
+            # Fallback to sequential evaluation
+            for individual in unevaluated:
                 individual.evaluate(fitness_func, get_response_func)
         
-        self.population.sort(key=lambda x: x.fitness, reverse=True)
+        self.population.sort(key=lambda x: x.fitness if x.fitness is not None else float('-inf'), reverse=True)
         self.best_individual = self.population[0]
         
     def select_parent(self) -> Individual:
@@ -104,8 +120,8 @@ class EvolutionaryOptimizer:
         tournament.sort(key=lambda x: x.fitness, reverse=True)
         return tournament[0]
     
-    def evolve(self, fitness_func: Callable, get_response_func: Callable = None):
-        self.evaluate_population(fitness_func, get_response_func)
+    def evolve(self, fitness_func: Callable, get_response_func: Callable = None, num_threads: int = 10):
+        self.evaluate_population(fitness_func, get_response_func, num_threads)
         
         new_population = []
         
@@ -137,27 +153,28 @@ class EvolutionaryOptimizer:
         
         return self.best_individual
 
-def run_optimization(generations: int = 50):
+def run_optimization(generations: int = 50, num_threads: int = 10):
     optimizer = EvolutionaryOptimizer(
         population_size=30,  # Reduced population size to limit API calls
         mutation_rate=0.1,
         crossover_rate=0.7,
         elitism_count=3,
-        prompt_length=15  # Shorter prompts to start
+        prompt_length=30  # System prompts can be a bit longer
     )
     
     print("Starting evolutionary optimization...")
+    print(f"Using {num_threads} threads for parallel evaluation")
     print("Generation 0: Initializing population")
     
     for gen in range(1, generations + 1):
-        best = optimizer.evolve(evaluate_response, get_llm_response)
+        best = optimizer.evolve(evaluate_response, get_llm_response, num_threads)
         print(f"Generation {gen}: Best fitness = {best.fitness}")
-        print(f"Best prompt: '{best.prompt}'")
+        print(f"Best system prompt: '{best.prompt}'")
         print(f"Response: '{best.response[:50]}...' (truncated)")
         print("-" * 50)
     
     print("\nOptimization complete!")
-    print(f"Best prompt found: '{optimizer.best_individual.prompt}'")
+    print(f"Best system prompt found: '{optimizer.best_individual.prompt}'")
     print(f"Fitness score: {optimizer.best_individual.fitness}")
     
     # Analyze the best response
@@ -167,11 +184,11 @@ def run_optimization(generations: int = 50):
     print(f"Total number of 'a's: {optimizer.best_individual.response.count('a')}")
     
     # Print the full response
-    print("\nFull response to best prompt:")
+    print("\nFull response to best system prompt:")
     print(optimizer.best_individual.response)
 
 def main():
-    run_optimization(generations=10)  # Reduced generations to limit API calls
+    run_optimization(generations=10, num_threads=10)  # Reduced generations to limit API calls
 
 if __name__ == "__main__":
     main()
