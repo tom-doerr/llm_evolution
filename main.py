@@ -38,6 +38,25 @@ def get_llm_response(system_prompt: str) -> str:
         print(f"Error calling LLM: {e}")
         return ""  # Return empty string on error
 
+def get_llm_mutation(system_prompt: str) -> str:
+    """
+    Get a mutation from the LLM by using its response as the new prompt.
+    """
+    try:
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant that generates random text. Your response will be used as a system prompt."},
+            {"role": "user", "content": f"Generate a new system prompt based on this one: {system_prompt}"}
+        ]
+        
+        response = litellm.completion(
+            model="deepseek/deepseek-chat",
+            messages=messages
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error calling LLM for mutation: {e}")
+        return system_prompt  # Return original prompt on error
+
 class Individual:
     def __init__(self, prompt: str = None, length: int = 30):
         if prompt is None:
@@ -55,12 +74,18 @@ class Individual:
             self.fitness = fitness_func(self.prompt)
         return self.fitness
     
-    def mutate(self, mutation_rate: float = 0.1):
-        chars = list(self.prompt)
-        for i in range(len(chars)):
-            if random.random() < mutation_rate:
-                chars[i] = random.choice(string.ascii_lowercase)
-        self.prompt = ''.join(chars)
+    def mutate(self, mutation_rate: float = 0.1, mutation_func: Callable = None):
+        if mutation_func and random.random() < mutation_rate:
+            # Use LLM to generate a mutation
+            self.prompt = mutation_func(self.prompt)
+        else:
+            # Fallback to random character mutation
+            chars = list(self.prompt)
+            for i in range(len(chars)):
+                if random.random() < mutation_rate:
+                    chars[i] = random.choice(string.ascii_lowercase)
+            self.prompt = ''.join(chars)
+        
         self.fitness = None  # Reset fitness after mutation
         return self
 
@@ -135,8 +160,8 @@ class EvolutionaryOptimizer:
                 parent2 = self.select_parent()
                 child1, child2 = parent1.crossover(parent2)
                 
-                child1.mutate(self.mutation_rate)
-                child2.mutate(self.mutation_rate)
+                child1.mutate(self.mutation_rate, get_llm_mutation)
+                child2.mutate(self.mutation_rate, get_llm_mutation)
                 
                 new_population.append(child1)
                 if len(new_population) < self.population_size:
@@ -144,7 +169,7 @@ class EvolutionaryOptimizer:
             else:
                 # Just mutation
                 parent = self.select_parent()
-                child = Individual(parent.prompt).mutate(self.mutation_rate)
+                child = Individual(parent.prompt).mutate(self.mutation_rate, get_llm_mutation)
                 new_population.append(child)
         
         self.population = new_population
@@ -155,21 +180,21 @@ class EvolutionaryOptimizer:
 
 def run_optimization(generations: int = 50, num_threads: int = 10):
     optimizer = EvolutionaryOptimizer(
-        population_size=30,  # Reduced population size to limit API calls
-        mutation_rate=0.1,
-        crossover_rate=0.7,
-        elitism_count=3,
-        prompt_length=30  # System prompts can be a bit longer
+        population_size=20,  # Further reduced population size due to more API calls
+        mutation_rate=0.8,   # Higher mutation rate to encourage LLM mutations
+        crossover_rate=0.5,  # Lower crossover rate to favor mutations
+        elitism_count=2,     # Keep fewer elites
+        prompt_length=30     # System prompts can be a bit longer
     )
     
-    print("Starting evolutionary optimization...")
+    print("Starting evolutionary optimization with LLM-based mutations...")
     print(f"Using {num_threads} threads for parallel evaluation")
-    print("Generation 0: Initializing population")
+    print("Generation 0: Initializing population with random prompts")
     
     for gen in range(1, generations + 1):
         best = optimizer.evolve(evaluate_response, get_llm_response, num_threads)
         print(f"Generation {gen}: Best fitness = {best.fitness}")
-        print(f"Best system prompt: '{best.prompt}'")
+        print(f"Best system prompt: '{best.prompt[:50]}...' (truncated)")
         print(f"Response: '{best.response[:50]}...' (truncated)")
         print("-" * 50)
     
@@ -188,7 +213,7 @@ def run_optimization(generations: int = 50, num_threads: int = 10):
     print(optimizer.best_individual.response)
 
 def main():
-    run_optimization(generations=10, num_threads=10)  # Reduced generations to limit API calls
+    run_optimization(generations=5, num_threads=10)  # Further reduced generations due to more API calls
 
 if __name__ == "__main__":
     main()
