@@ -48,14 +48,13 @@ def reasoner_experiment(iterations: int = 10):
             messages = [{"role": "system", "content": system_msg}]
             
             # Start with initial prompt
-            messages.append({"role": "user", "content": "Create improved text:"})
+            messages.append({"role": "user", "content": "Start"})
             
             # Add history as previous exchanges
             if history:
                 for resp, reward, _ in history:
                     messages.append({"role": "assistant", "content": resp})
                     messages.append({"role": "user", "content": f"Received reward: {reward}"})
-                    messages.append({"role": "user", "content": "Create improved text:"})
             
             # Get model completion
             response = litellm.completion(
