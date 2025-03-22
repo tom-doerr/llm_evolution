@@ -257,7 +257,7 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
             table.add_row("Best Fitness", str(best.fitness))
             table.add_row("Best System Prompt", best.prompt[:50] + "..." if len(best.prompt) > 50 else best.prompt)
             table.add_row("Response", best.response[:50] + "..." if len(best.response) > 50 else best.response)
-            table.add_row("'a's (Reward)", f"{best.response[:23].count('a')} (+{best.response[:23].count('a')})"))
+            table.add_row("'a's (Reward)", f"{best.response[:23].count('a')} (+{best.response[:23].count('a')})")
             
             console.print(table)
             
