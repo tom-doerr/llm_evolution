@@ -14,11 +14,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskID
 def evaluate_response(response: str) -> float:
     """
     Evaluate an LLM response based on hidden criteria.
-    Returns a score.
+    Returns a score based on bytes (+1 for 'a' bytes before 23, -1 for any byte after 23)
     """
     score = 0
-    for i, char in enumerate(response):
-        if i < 23 and char == 'a':
+    # Convert to bytes and check each byte position
+    for i, byte in enumerate(response.encode('utf-8')):
+        if i < 23 and byte == ord('a'):
             score += 1
         elif i >= 23:
             score -= 1
