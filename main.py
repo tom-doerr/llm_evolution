@@ -378,7 +378,7 @@ def run_optimization(generations: int = 50, num_threads: int = 100):
     console.print(params_table)
 
 def main():
-    run_optimization(generations=5, num_threads=100)  # Using 100 threads by default
+    run_optimization(generations=50, num_threads=100)  # Using 100 threads by default
 
 if __name__ == "__main__":
     main()
